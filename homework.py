@@ -93,21 +93,23 @@ def get_api_answer(timestamp: int) -> dict:
         'params': {'from_date': timestamp}
     }
 
-    try:
-        logger.info(
-            f'Попытка отправки GET-запроса к эндпоинту {ENDPOINT} '
-            f'с параметрами {REQUEST_PARAMS["params"]}')
-        response = requests.get(**REQUEST_PARAMS)
-        if response.status_code != HTTPStatus.OK:
-            raise APIRequestError(
-                f'Эндпоинт {ENDPOINT} недоступен. '
-                f'Код ответа API: {response.status_code}'
-            )
-        logger.info('Ответ на запрос к API получен')
-        return response.json()
+    logger.info(
+        f'Попытка отправки GET-запроса к эндпоинту {ENDPOINT} '
+        f'с параметрами {REQUEST_PARAMS["params"]}')
 
+    try:
+        response = requests.get(**REQUEST_PARAMS)
     except requests.exceptions.RequestException as error:
         raise APIRequestError(f'Ошибка при запросе к API: {error}')
+
+    if response.status_code != HTTPStatus.OK:
+        raise APIRequestError(
+            f'Эндпоинт {ENDPOINT} недоступен. '
+            f'Код ответа API: {response.status_code}'
+        )
+    logger.info('Ответ на запрос к API получен')
+
+    return response.json()
 
 
 def check_response(response: dict) -> list:
@@ -125,7 +127,7 @@ def check_response(response: dict) -> list:
     if 'homeworks' not in response:
         raise APIResponseError('В ответе API отсутствует ключ "homeworks"')
 
-    homeworks = response.get('homeworks')
+    homeworks = response['homeworks']
     if not isinstance(homeworks, list):
         raise TypeError('Значение ключа "homeworks" должно быть списком')
 
@@ -145,21 +147,21 @@ def parse_status(homework: dict) -> str:
     if not isinstance(homework, dict):
         raise TypeError('Homework должен быть словарем')
 
-    homework_name = homework.get('homework_name')
-    homework_status = homework.get('status')
-
-    if not homework_name:
+    if 'homework_name' not in homework:
         raise KeyError('В ответе API отсутствует ключ "homework_name"')
 
-    if not homework_status:
+    if 'status' not in homework:
         raise KeyError('В ответе API отсутствует ключ "status"')
+
+    homework_name = homework['homework_name']
+    homework_status = homework['status']
 
     if homework_status not in HOMEWORK_VERDICTS:
         raise HomeworkStatusUnknown(
             f'Неизвестный статус работы: {homework_status}'
         )
 
-    verdict = HOMEWORK_VERDICTS.get(homework_status)
+    verdict = HOMEWORK_VERDICTS[homework_status]
 
     logger.info(f'Изменение статуса работы "{homework_name}"')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
